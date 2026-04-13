@@ -39,6 +39,6 @@ export default function App() {
   );
 
   if (!session) return <Login />;
-  if (profile?.role === 'admin') return <AdminApp profile={profile} />;
+  if (profile && (profile.role === 'admin' || profile.role === 'Admin')) return <AdminApp profile={profile} />;
   return <EmployeeApp profile={profile} />;
 }
