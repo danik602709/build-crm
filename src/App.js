@@ -45,6 +45,25 @@ export default function App() {
 
   const isAdmin = profile?.role === 'admin';
 
+  // Обработчики форм
+  async function handleAddObject(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const { error } = await supabase.from('objects').insert([{
+      name: fd.get('name'), address: fd.get('address'), budget_income: Number(fd.get('budget'))
+    }]);
+    if (error) alert(error.message); else { setShowModal(null); fetchInitialData(session.user.id); }
+  }
+
+  async function handleAddTask(e) {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const { error } = await supabase.from('tasks').insert([{
+      object_id: fd.get('object_id'), text: fd.get('text'), user_id: fd.get('user_id'), deadline: fd.get('deadline'), done: false
+    }]);
+    if (error) alert(error.message); else { setShowModal(null); fetchInitialData(session.user.id); }
+  }
+
   async function handleAddCost(e) {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -54,145 +73,174 @@ export default function App() {
     if (error) alert(error.message); else { setShowModal(null); fetchInitialData(session.user.id); }
   }
 
-  async function handleUpdateObject(e) {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    const { error } = await supabase.from('objects').update({
-      name: fd.get('name'), address: fd.get('address'), budget_income: Number(fd.get('budget'))
-    }).eq('id', editItem.id);
-    if (error) alert(error.message); else { setEditItem(null); fetchInitialData(session.user.id); }
-  }
-
-  if (loading) return <div style={{background:C.bg, height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontFamily:'sans-serif'}}>Загрузка Abyroi CRM...</div>;
+  if (loading) return <div style={{background:C.bg, height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontFamily:'sans-serif'}}>Загрузка...</div>;
 
   if (!session) return <LoginForm C={C} />;
 
   return (
-    <div style={{display:'flex', minHeight:'100vh', background:C.bg, color:C.text, fontFamily:'Onest, sans-serif'}}>
+    <div style={{display:'flex', minHeight:'100vh', background:C.bg, color:C.text, fontFamily:'sans-serif'}}>
       {/* Sidebar */}
-      <div style={{width:250, borderRight:`1px solid ${C.border}`, padding:25}}>
+      <div style={{width:240, borderRight:`1px solid ${C.border}`, padding:25, display:'flex', flexDirection:'column'}}>
         <h2 style={{color:C.accent, marginBottom:30}}>Abyroi CRM</h2>
-        <div onClick={() => setTab('dashboard')} style={{padding:12, cursor:'pointer', color: tab==='dashboard'?C.accent:C.muted}}>📊 Дашборд</div>
-        <div onClick={() => setTab('objects')} style={{padding:12, cursor:'pointer', color: tab==='objects'?C.accent:C.muted}}>🏗️ Объекты</div>
-        <div onClick={() => setTab('tasks')} style={{padding:12, cursor:'pointer', color: tab==='tasks'?C.accent:C.muted}}>✅ Задачи</div>
-        {isAdmin && <div onClick={() => setTab('finance')} style={{padding:12, cursor:'pointer', color: tab==='finance'?C.accent:C.muted}}>💰 Финансы</div>}
-        <button onClick={() => supabase.auth.signOut()} style={{marginTop:40, background:'none', border:'none', color:C.red, cursor:'pointer'}}>Выйти</button>
+        <nav style={{flex:1}}>
+            <div onClick={() => setTab('dashboard')} style={{padding:12, cursor:'pointer', color: tab==='dashboard'?C.accent:C.muted}}>📊 Дашборд</div>
+            <div onClick={() => setTab('objects')} style={{padding:12, cursor:'pointer', color: tab==='objects'?C.accent:C.muted}}>🏗️ Объекты</div>
+            <div onClick={() => setTab('tasks')} style={{padding:12, cursor:'pointer', color: tab==='tasks'?C.accent:C.muted}}>✅ Задачи</div>
+            {isAdmin && <div onClick={() => setTab('finance')} style={{padding:12, cursor:'pointer', color: tab==='finance'?C.accent:C.muted}}>💰 Финансы</div>}
+        </nav>
+        <button onClick={() => supabase.auth.signOut()} style={{background:'none', border:`1px solid ${C.border}`, color:C.red, padding:10, borderRadius:8, cursor:'pointer'}}>Выйти</button>
       </div>
 
-      {/* Content */}
+      {/* Main Content */}
       <div style={{flex:1, padding:40, overflowY:'auto'}}>
-        {tab === 'dashboard' && <Dashboard isAdmin={isAdmin} objects={objects} tasks={tasks} costs={costs} C={C} />}
-        
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:30}}>
+            <h2 style={{margin:0}}>{tab==='dashboard'?'Дашборд':tab==='objects'?'Объекты':tab==='tasks'?'Задачи':'Финансы'}</h2>
+            <div style={{display:'flex', gap:10}}>
+                {isAdmin && tab === 'objects' && <button onClick={() => setShowModal('object')} style={{background:C.accent, border:'none', padding:'10px 20px', color:'#fff', borderRadius:8, fontWeight:700}}>+ Объект</button>}
+                {isAdmin && tab === 'tasks' && <button onClick={() => setShowModal('task')} style={{background:C.green, border:'none', padding:'10px 20px', color:'#fff', borderRadius:8, fontWeight:700}}>+ Задача</button>}
+                {isAdmin && tab === 'finance' && <button onClick={() => setShowModal('cost')} style={{background:C.blue, border:'none', padding:'10px 20px', color:'#fff', borderRadius:8, fontWeight:700}}>+ Расход</button>}
+            </div>
+        </div>
+
+        {tab === 'dashboard' && <DashboardStats objects={objects} tasks={tasks} costs={costs} isAdmin={isAdmin} C={C} />}
+
         {tab === 'objects' && (
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:20}}>
-            {objects.map(o => (
-              <div key={o.id} onClick={() => isAdmin && setEditItem({type:'obj', ...o})} style={{background:C.card, padding:20, borderRadius:15, border:`1px solid ${C.border}`, cursor:isAdmin?'pointer':'default'}}>
-                <div style={{fontWeight:800, fontSize:18}}>{o.name} {isAdmin && '✏️'}</div>
-                <div style={{fontSize:13, color:C.muted}}>{o.address}</div>
-                {isAdmin && <div style={{marginTop:10, color:C.green, fontWeight:700}}>{o.budget_income?.toLocaleString()} ₸</div>}
-              </div>
-            ))}
-          </div>
+            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(280px, 1fr))', gap:20}}>
+                {objects.map(o => (
+                    <div key={o.id} onClick={() => isAdmin && setEditItem({type:'obj', ...o})} style={{background:C.card, padding:20, borderRadius:15, border:`1px solid ${C.border}`, cursor:isAdmin?'pointer':'default'}}>
+                        <div style={{fontWeight:800, fontSize:18}}>{o.name} {isAdmin && '✏️'}</div>
+                        <div style={{fontSize:13, color:C.muted}}>{o.address}</div>
+                        {isAdmin && <div style={{marginTop:10, color:C.green, fontWeight:700}}>{o.budget_income?.toLocaleString()} ₸</div>}
+                    </div>
+                ))}
+            </div>
         )}
 
-        {tab === 'finance' && <FinanceTable objects={objects} costs={costs} C={C} setShowModal={setShowModal} />}
-      </div>
+        {tab === 'tasks' && (
+            <div style={{background:C.card, borderRadius:15, border:`1px solid ${C.border}`}}>
+                {tasks.map(t => (
+                    <div key={t.id} style={{padding:20, borderBottom:`1px solid ${C.border}`, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                        <div>
+                            <div style={{fontWeight:700}}>{t.text}</div>
+                            <div style={{fontSize:12, color:C.muted}}>
+                                {objects.find(o=>o.id===t.object_id)?.name} | 👷 {profiles.find(p=>p.id===t.user_id)?.name}
+                            </div>
+                        </div>
+                        <div style={{color:C.accent, fontWeight:700}}>📅 {t.deadline || 'Без срока'}</div>
+                    </div>
+                ))}
+            </div>
+        )}
 
-      {/* Модалки */}
-      {showModal === 'cost' && <CostModal objects={objects} handleAddCost={handleAddCost} setShowModal={setShowModal} C={C} />}
-      {editItem?.type === 'obj' && <EditObjectModal editItem={editItem} handleUpdateObject={handleUpdateObject} setEditItem={setEditItem} C={C} />}
-    </div>
-  );
-}
-
-// --- Мини-компоненты для порядка ---
-
-function Dashboard({ isAdmin, objects, tasks, costs, C }) {
-  const totalIncome = objects.reduce((a,b) => a + (Number(b.budget_income)||0), 0);
-  const totalCosts = costs.reduce((a,b) => a + (Number(b.amount)||0), 0);
-  return (
-    <div>
-      <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:20, marginBottom:30}}>
-        <div style={{background:C.card, padding:20, borderRadius:15, border:`1px solid ${C.border}`}}>
-          <div style={{fontSize:12, color:C.muted}}>ОБЪЕКТОВ</div>
-          <div style={{fontSize:28, fontWeight:900}}>{objects.length}</div>
-        </div>
-        <div style={{background:C.card, padding:20, borderRadius:15, border:`1px solid ${C.border}`}}>
-          <div style={{fontSize:12, color:C.muted}}>ЗАДАЧ В РАБОТЕ</div>
-          <div style={{fontSize:28, fontWeight:900, color:C.accent}}>{tasks.filter(t=>!t.done).length}</div>
-        </div>
-        {isAdmin && (
-          <div style={{background:C.card, padding:20, borderRadius:15, border:`1px solid ${C.border}`}}>
-            <div style={{fontSize:12, color:C.muted}}>ПРИБЫЛЬ (ПРОГНОЗ)</div>
-            <div style={{fontSize:28, fontWeight:900, color:C.green}}>{(totalIncome - totalCosts).toLocaleString()} ₸</div>
-          </div>
+        {tab === 'finance' && (
+            <table style={{width:'100%', borderCollapse:'collapse', background:C.card, borderRadius:12, overflow:'hidden'}}>
+                <thead style={{background:C.border, color:C.muted}}>
+                    <tr><th style={{padding:15, textAlign:'left'}}>Объект</th><th style={{textAlign:'left'}}>Статья</th><th style={{textAlign:'left'}}>Сумма</th></tr>
+                </thead>
+                <tbody>
+                    {costs.map(c => (
+                        <tr key={c.id} style={{borderBottom:`1px solid ${C.border}`}}>
+                            <td style={{padding:15}}>{objects.find(o=>o.id===c.object_id)?.name}</td>
+                            <td>{c.title} <small style={{color:C.muted}}>({c.category})</small></td>
+                            <td style={{color:C.red, fontWeight:700}}>-{c.amount?.toLocaleString()} ₸</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         )}
       </div>
+
+      {/* Модальные окна */}
+      {showModal === 'object' && <ModalObject handleAddObject={handleAddObject} setShowModal={setShowModal} C={C} />}
+      {showModal === 'task' && <ModalTask objects={objects} profiles={profiles} handleAddTask={handleAddTask} setShowModal={setShowModal} C={C} />}
+      {showModal === 'cost' && <ModalCost objects={objects} handleAddCost={handleAddCost} setShowModal={setShowModal} C={C} />}
     </div>
   );
 }
 
-function FinanceTable({ objects, costs, C, setShowModal }) {
-  return (
-    <div>
-      <div style={{display:'flex', justifyContent:'space-between', marginBottom:20}}>
-        <h3>Расходы и Материалы</h3>
-        <button onClick={() => setShowModal('cost')} style={{background:C.blue, color:'#fff', border:'none', padding:'10px 20px', borderRadius:8, fontWeight:700}}>+ Добавить расход</button>
-      </div>
-      <table style={{width:'100%', borderCollapse:'collapse', background:C.card, borderRadius:12, overflow:'hidden'}}>
-        <thead style={{background:C.border, color:C.muted, fontSize:12}}>
-          <tr><th style={{padding:15, textAlign:'left'}}>Объект</th><th style={{textAlign:'left'}}>Наименование</th><th style={{textAlign:'left'}}>Сумма</th></tr>
-        </thead>
-        <tbody>
-          {costs.map(c => (
-            <tr key={c.id} style={{borderBottom:`1px solid ${C.border}`}}>
-              <td style={{padding:15}}>{objects.find(o=>o.id===c.object_id)?.name}</td>
-              <td>{c.title} <span style={{fontSize:10, color:C.muted}}>({c.category})</span></td>
-              <td style={{color:C.red, fontWeight:700}}>-{c.amount?.toLocaleString()} ₸</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+// --- Подчиненные компоненты ---
+
+function DashboardStats({ objects, tasks, costs, isAdmin, C }) {
+    const income = objects.reduce((a,b)=>a+(Number(b.budget_income)||0), 0);
+    const expense = costs.reduce((a,b)=>a+(Number(b.amount)||0), 0);
+    return (
+        <div style={{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:20}}>
+            <div style={{background:C.card, padding:25, borderRadius:20, border:`1px solid ${C.border}`}}>
+                <div style={{color:C.muted}}>Объектов</div>
+                <div style={{fontSize:32, fontWeight:900}}>{objects.length}</div>
+            </div>
+            <div style={{background:C.card, padding:25, borderRadius:20, border:`1px solid ${C.border}`}}>
+                <div style={{color:C.muted}}>Задач в работе</div>
+                <div style={{fontSize:32, fontWeight:900, color:C.accent}}>{tasks.filter(t=>!t.done).length}</div>
+            </div>
+            {isAdmin && (
+                <div style={{background:C.card, padding:25, borderRadius:20, border:`1px solid ${C.border}`}}>
+                    <div style={{color:C.muted}}>Прибыль (прогноз)</div>
+                    <div style={{fontSize:32, fontWeight:900, color:C.green}}>{(income-expense).toLocaleString()} ₸</div>
+                </div>
+            )}
+        </div>
+    );
 }
 
-function CostModal({ objects, handleAddCost, setShowModal, C }) {
-  return (
-    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100}}>
-      <form onSubmit={handleAddCost} style={{background:C.card, padding:30, borderRadius:20, width:350}}>
-        <h3>Новый расход</h3>
-        <select name="object_id" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}}>
-          <option value="">Выберите объект</option>
-          {objects.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
-        </select>
-        <input name="title" placeholder="Напр: Арматура 12мм" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}} />
-        <select name="category" style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}}>
-          <option value="материалы">Материалы</option>
-          <option value="зарплата">Зарплата</option>
-          <option value="логистика">Транспорт</option>
-        </select>
-        <input name="amount" type="number" placeholder="Сумма ₸" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:20}} />
-        <button type="submit" style={{width:'100%', padding:12, background:C.blue, color:'#fff', border:'none', borderRadius:8}}>Записать</button>
-        <button onClick={()=>setShowModal(null)} type="button" style={{width:'100%', marginTop:10, background:'none', color:C.muted, border:'none'}}>Отмена</button>
-      </form>
-    </div>
-  );
+function ModalObject({ handleAddObject, setShowModal, C }) {
+    return (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100}}>
+            <form onSubmit={handleAddObject} style={{background:C.card, padding:30, borderRadius:20, width:350}}>
+                <h3>Новый объект</h3>
+                <input name="name" placeholder="Название" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}} />
+                <input name="address" placeholder="Адрес" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}} />
+                <input name="budget" type="number" placeholder="Бюджет дохода ₸" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:20}} />
+                <button type="submit" style={{width:'100%', padding:12, background:C.accent, color:'#fff', border:'none', borderRadius:8, fontWeight:700}}>Создать</button>
+                <button onClick={()=>setShowModal(null)} type="button" style={{width:'100%', marginTop:10, background:'none', color:C.muted, border:'none'}}>Отмена</button>
+            </form>
+        </div>
+    );
 }
 
-function EditObjectModal({ editItem, handleUpdateObject, setEditItem, C }) {
-  return (
-    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100}}>
-      <form onSubmit={handleUpdateObject} style={{background:C.card, padding:30, borderRadius:20, width:350}}>
-        <h3>Редактировать объект</h3>
-        <input name="name" defaultValue={editItem.name} required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}} />
-        <input name="address" defaultValue={editItem.address} required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}} />
-        <input name="budget" type="number" defaultValue={editItem.budget_income} required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:20}} />
-        <button type="submit" style={{width:'100%', padding:12, background:C.accent, color:'#fff', border:'none', borderRadius:8}}>Сохранить</button>
-        <button onClick={()=>setEditItem(null)} type="button" style={{width:'100%', marginTop:10, background:'none', color:C.muted, border:'none'}}>Отмена</button>
-      </form>
-    </div>
-  );
+function ModalTask({ objects, profiles, handleAddTask, setShowModal, C }) {
+    return (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100}}>
+            <form onSubmit={handleAddTask} style={{background:C.card, padding:30, borderRadius:20, width:350}}>
+                <h3>Новая задача</h3>
+                <select name="object_id" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}}>
+                    <option value="">Выберите объект</option>
+                    {objects.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+                <input name="text" placeholder="Что сделать?" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}} />
+                <select name="user_id" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}}>
+                    <option value="">Выберите исполнителя</option>
+                    {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <input name="deadline" type="date" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:20}} />
+                <button type="submit" style={{width:'100%', padding:12, background:C.green, color:'#fff', border:'none', borderRadius:8, fontWeight:700}}>Поставить задачу</button>
+                <button onClick={()=>setShowModal(null)} type="button" style={{width:'100%', marginTop:10, background:'none', color:C.muted, border:'none'}}>Отмена</button>
+            </form>
+        </div>
+    );
+}
+
+function ModalCost({ objects, handleAddCost, setShowModal, C }) {
+    return (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100}}>
+            <form onSubmit={handleAddCost} style={{background:C.card, padding:30, borderRadius:20, width:350}}>
+                <h3>Записать расход</h3>
+                <select name="object_id" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}}>
+                    <option value="">Выберите объект</option>
+                    {objects.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+                </select>
+                <input name="title" placeholder="Наименование (напр: Бетон)" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}} />
+                <select name="category" style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:10}}>
+                    <option value="материалы">Материалы</option>
+                    <option value="зарплата">Зарплата</option>
+                    <option value="логистика">Транспорт</option>
+                </select>
+                <input name="amount" type="number" placeholder="Сумма ₸" required style={{width:'100%', padding:12, background:C.bg, color:'#fff', marginBottom:20}} />
+                <button type="submit" style={{width:'100%', padding:12, background:C.blue, color:'#fff', border:'none', borderRadius:8, fontWeight:700}}>Записать</button>
+                <button onClick={()=>setShowModal(null)} type="button" style={{width:'100%', marginTop:10, background:'none', color:C.muted, border:'none'}}>Отмена</button>
+            </form>
+        </div>
+    );
 }
 
 function LoginForm({ C }) {
@@ -204,7 +252,7 @@ function LoginForm({ C }) {
           const { error } = await supabase.auth.signInWithPassword({ email: fd.get('email'), password: fd.get('password') });
           if (error) alert("Ошибка входа");
       }} style={{ background: C.card, padding: 40, borderRadius: 20, width: 320, border: `1px solid ${C.border}` }}>
-        <h2 style={{ color: '#fff', textAlign: 'center', margin: '0 0 20px 0' }}>Abyroi CRM</h2>
+        <h2 style={{ color: '#fff', textAlign: 'center', marginBottom: 20 }}>Abyroi CRM</h2>
         <input name="email" type="email" placeholder="Email" required style={{ width: '100%', padding: 12, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: '#fff', marginBottom: 10 }} />
         <input name="password" type="password" placeholder="Пароль" required style={{ width: '100%', padding: 12, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: '#fff', marginBottom: 20 }} />
         <button type="submit" style={{ width: '100%', padding: 12, background: C.accent, color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700 }}>Войти</button>
