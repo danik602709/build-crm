@@ -59,7 +59,7 @@ export default function AdminApp({ profile }) {
     window.location.reload();
   };
 
-  if (loading) return <div style={{background:C.bg, height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontFamily:'sans-serif'}}>Загрузка Abyroi CRM...</div>;
+ if (loading) return <div style={...}>Загрузка Abyroi CRM...</div>;
 
   const inputStyle = { width: '100%', padding: '12px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: '#fff', marginBottom: 15, fontSize: '14px' };
   const labelStyle = { display:'block', marginBottom: 5, fontSize: 12, color: C.muted };
