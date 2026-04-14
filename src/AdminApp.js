@@ -22,7 +22,10 @@ export default function AdminApp() {
     setLoading(false);
   }
 
-  const handleLogout = () => supabase.auth.signOut();
+  const handleLogout = async () => {
+  await supabase.auth.signOut();
+  window.location.reload(); // Это заставит страницу обновиться и показать экран входа
+};
 
   const NavItem = ({ id, label, icon }) => (
     <div onClick={() => setTab(id)} style={{
