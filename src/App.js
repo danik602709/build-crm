@@ -59,9 +59,8 @@ export default function App() {
     if (error) alert(error.message); else { setShowModal(null); fetchInitialData(session.user.id); }
   }
 
-  if (loading) return <div style={{background:C.bg, height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff'}}>Загрузка Abyroi CRM...</div>;
+  if (loading) return <div style={{background:C.bg, height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontFamily:'sans-serif'}}>Загрузка Abyroi CRM...</div>;
 
-  // ЭКРАН ВХОДА
   if (!session) {
     return (
       <div style={{ background: C.bg, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>
@@ -76,7 +75,6 @@ export default function App() {
     );
   }
 
-  // ГЛАВНЫЙ ИНТЕРФЕЙС
   return (
     <div style={{display:'flex', minHeight:'100vh', background:C.bg, color:C.text, fontFamily:'sans-serif'}}>
       <div style={{width:260, borderRight:`1px solid ${C.border}`, padding:25}}>
@@ -85,17 +83,35 @@ export default function App() {
         <div onClick={() => setTab('tasks')} style={{padding:12, cursor:'pointer', color: tab==='tasks'?C.accent:C.muted}}>✅ Задачи</div>
         <button onClick={() => supabase.auth.signOut()} style={{marginTop:20, background:'none', border:`1px solid ${C.border}`, color:C.muted, padding:8, borderRadius:5, cursor:'pointer', width:'100%'}}>Выйти</button>
       </div>
-
       <div style={{flex:1, padding:40}}>
         <div style={{display:'flex', justifyContent:'space-between', marginBottom:30}}>
           <h2>{tab === 'objects' ? 'Объекты' : 'Задачи'}</h2>
           <button onClick={() => setShowModal('object')} style={{background:C.accent, border:'none', padding:'10px 20px', color:'#fff', borderRadius:8, cursor:'pointer'}}>+ Добавить</button>
         </div>
-
         {tab === 'objects' && (
           <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:20}}>
             {objects.map(o => (
               <div key={o.id} style={{background:C.card, padding:20, borderRadius:12, border:`1px solid ${C.border}`}}>
                 <div style={{fontWeight:700, fontSize:18}}>{o.name}</div>
                 <div style={{color:C.muted}}>{o.address}</div>
-                <div style={{marginTop:10
+                <div style={{marginTop:10}}>Бюджет: {o.budget?.toLocaleString()} ₸</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {showModal === 'object' && (
+        <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center'}}>
+          <form onSubmit={handleAddObject} style={{background:C.card, padding:30, borderRadius:15, width:350}}>
+            <h3>Новый объект</h3>
+            <input name="name" placeholder="Название" required style={{width:'100%', padding:10, marginBottom:10, background:C.bg, color:'#fff', border:`1px solid ${C.border}`}} />
+            <input name="address" placeholder="Адрес" required style={{width:'100%', padding:10, marginBottom:10, background:C.bg, color:'#fff', border:`1px solid ${C.border}`}} />
+            <input name="budget" type="number" placeholder="Бюджет" required style={{width:'100%', padding:10, marginBottom:10, background:C.bg, color:'#fff', border:`1px solid ${C.border}`}} />
+            <button type="submit" style={{width:'100%', padding:12, background:C.accent, color:'#fff', border:'none', borderRadius:8}}>Создать</button>
+            <button onClick={()=>setShowModal(null)} type="button" style={{width:'100%', marginTop:10, background:'none', color:C.muted, border:'none'}}>Отмена</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
